@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Task Manager</title>
+    <style>
+        * {
+            margin: 0;  /* Adds space inside an element's border*/
+            padding: 0; /* Adds space outside an element's border*/
+            box-sizing: border-box; /* The element's width and height include padding and borders within the specified dimensions*/
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .add-task-form{
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+            background: #e8e8e8;
+        }
+
+        .task-content {
+            flex-grow: 1;
+        }
+
+        .task-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .task-title.completed {
+            text-decoration: line-through;
+        }
+
+        .task-description {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-complete {
+            background-color: #2196F3;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+
+        .btn-complete:hover {
+            background-color: #0b7dda;
+        }
+
+        .btn-delete {
+            background-color: #f44336;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+
+        .btn-delete:hover {
+            background-color: #da190b;
+        }
+
+        .btn-edit:hover {
+            background-color:#999999;
+        }
+
+        .no-tasks {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Task Manager</h1>
+        <div class="add-task-form">
+            <h2> Add New Task</h2>
+            <form id="taskForm">
+                <div class="form-group">
+                    <label for="title">Title: </label>
+                    <input type="text" id="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description"></textarea>
+                </div>
+                <button type="submit" id="addTaskButton">Add Task</button>
+            </form>
+        </div>
+        <h2>Your Tasks</h2>
+        <ul id="taskList" class="task-list"></ul>
+        <div id="noTasks" class="no-tasks" style="display: none">
+            No tasks yet. Add one above.
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/tasks';
+
+        let currentEditingTaskId = null;
+
+        // When the page finishes loading, automatically call the loadTasks function
+        // to display current existing tasks
+        document.addEventListener('DOMContentLoaded', loadTasks);
+
+        // document.getElementById('taskForm') -> find the HTML element with id="taskForm"
+        // .addEventListener ('submit', ...) listen for when the form is submitted (user clicks 'Add Task') button
+        // async (e) => {...} -> an asynchronous arrow function that receives an event object e
+        // async means this function can use await inside it for waiting on API calls
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // prevents page from doing its default behavior (to reload the page) without it, the page refreshes and you lose everything
+
+            const title = document.getElementById('title').value; //find the input field with id="title" and get whatever user typed into that field
+            const description = document.getElementById('description').value; //find the input field with id="description" and get whatever user typed into that field
+
+
+            //Creates a JavaScript object that matches our Task entity structure, gives it the values we just stored before
+            // This object will be converted to JSON and sent to the API
+            const task = {
+                title: title,
+                description: description,
+                completed: false
+            };
+
+            if(currentEditingTaskId !== null){
+                try {
+                    const response = await fetch(`${API_URL}/${currentEditingTaskId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type' : 'application/json'
+                        },
+                            body: JSON.stringify(task)
+                    });
+
+                    if(response.ok){
+                        currentEditingTaskId = null;
+                        document.getElementById("addTaskButton").textContent = "Add Task"
+                        document.getElementById("title").value = '';
+                        document.getElementById("description").value = '';
+                        loadTasks();
+                    }
+                } catch (error){
+                    console.log(error);
+                    alert("Error: Failed to update task. ")
+                }
+            } else {
+                // try: code will execute, and it any errors occur, it jumps to catch block
+                // fetch(): JavaScript's built in function for making HTTP requests
+                // API_URL: 'http://localhost:8080/tasks' (where we're sending the request)
+                // response: where the result is being stored
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST', // Specifies this is a POST request (creating new data), there is also GET(read), PUT(update), and DELETE(delete)
+                        headers: { // metadata about the request
+                            'Content-Type': 'application/json', // "I'm sending JSON data" (tells SpringBoot backend to expect JSON)
+                        },
+                        //body: the data we are sending
+                        // JSON.stringify(task): converts JavaScript object into a JSON string
+                        // Example: {title: "Test", description: "..."} becomes '{"title":"Test","description":"..."}'
+                        body: JSON.stringify(task)
+                    });
+
+                    // If the HTTP status is 200-299 (success), execute code inside
+                    if (response.ok) {
+                        // This clears the input fields by setting their values to empty strings
+                        // This resets the form after successfully adding a task
+                        document.getElementById('title').value = '';
+                        document.getElementById('description').value = '';
+                        loadTasks(); // call loadTasks() function to refresh the task list and include the new one that was just added
+                    }
+                    // catches any errors, prints them to the browser console for debugging and shows a popup to the user saying it failed
+                } catch (error) {
+                    console.error('Error adding task:', error);
+                    alert('Failed to add task');
+                }
+            }
+        });
+
+        //Loads all tasks
+        //async: this function can use await for asynchronous operations
+        async function loadTasks() {
+            try {
+                // fetch(API_URL) with no options makes a GET request
+                // sends GET request to 'http://localhost:8080/tasks' (fetch all tasks)
+                // await: wait for the response
+                const response = await fetch(API_URL);
+
+                // parse the response body as JSON
+                // Converts the JSON string from the API into a JavaScript array of objects
+                // await : wait for the parsing to complete
+                // Example result: [{id: 1, title: "Task 1", ...}, {id: 2, title: "Task 2", ...}]
+                const tasks = await response.json();
+
+                // debugging
+                //console.log('Fetched tasks:', tasks);
+                //console.log('First task:', tasks[0]);
+                //console.log('First task id:', tasks[0]?.Id);
+
+                // Get references to HTML elements so we can modify them
+                // taskList: the <ul> where tasks will be displayed
+                // noTasks: the message that shows when there are no tasks
+                const taskList = document.getElementById('taskList');
+                const noTasks = document.getElementById('noTasks');
+
+                // check if array is empty (no tasks returned from API)
+                if (tasks.length === 0) {
+                    taskList.innerHTML = '';// innerHTML = the HTML content inside the element, setting it to empty string and clearing any content
+                    noTasks.style.display = 'block'; // style.display: controls whether element is visible, 'block' makes it visible -> this shows the "No tasks yet" message
+                    return; // exit the function and don't execute the code below
+                }
+
+                // if we reach here, there ARE tasks so we hide the "No tasks yet" message by setting display to none
+                noTasks.style.display = 'none';
+
+                //tasks.map(): loop through each task in the array
+                //For each task, execute the function task => ...
+                // Returns a new array of HTML strings
+                // .innerHTML: will set the result as the HTML content of the <ul>
+
+                // <li> class= "task-item : Creates an <li> (list item) for each task
+                // If task.completed is true, add the class 'completed', otherwise add nothing
+                //So completed tasks get the CSS class that makes them look faded/crossed out
+
+                //<div class="task-content">: Creates a div to hold the task's content
+                // ${task.title} = inserts the actual task title from the task object
+                // Again, adds 'completed' class if the task is completed (for the strikethrough effect)
+
+                // <div class="task-description">: inserts the description, or empty string if description is null/undefined
+                // The || is the "OR" operator - "use description if it exists, otherwise use ''"
+
+                //<button class="btn-complete": Creates a button with class "btn-complete" (for CSS styling)
+                // onclick="..." = the JavaScript code to run when clicked
+                // toggleComplete(${task.id}, ${!task.completed}) = call the function with:
+                    // - First argument: the task's ID
+                    // Second argument: the OPPOSITE of the current completed status (! means NOT)
+                    // So if completed is true, it passes false (to mark as incomplete), and vice versa
+
+                // {task.completed ? 'Undo' : 'Complete'}: The button text changes based on the task's status
+                    // -If completed: show "Undo"
+                    // If not completed: show "Complete"
+
+                // <button class="btn-delete": creates delete button
+                // onclick="deleteTask(${task.id})" = call deleteTask function with the task's ID
+                taskList.innerHTML = tasks.map(task => `
+                    <li class="task-item ${task.completed ? 'completed' : ''}">
+                        <div class="task-content">
+                            <div class="task-title ${task.completed ? 'completed' : ''}">${task.title}</div>
+                            <div class="task-description">${task.description || ''}</div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn-complete" onclick="toggleComplete(${task.id}, ${!task.completed})">
+                                ${task.completed ? 'Undo' : 'Complete'}
+                            </button>
+                            <button class="btn-delete" onclick="deleteTask(${task.id})">Delete</button>
+                            <button class="btn-edit" id="edit-button" onclick="editTask(${task.id})">Edit </button>
+                        </div>
+                    </li>
+                `).join(''); // combines all those strings into one big string (no separator between them)
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        //Toggle task completion
+        // Takes two parameters:
+            // -id = which task to update
+            // completed = what to set the completed status to (true or false)
+        async function toggleComplete(id, completed) {
+            try {
+                // Fetch a single task by ID
+                // ex: ${API_URL}/${id} = 'http://localhost:8080/tasks/5' (if id is 5)
+                // This is a GET request to retrieve the current task data
+                const response = await fetch(`${API_URL}/${id}`);
+
+                //Parse the response into a JavaScript object
+                // Now task contains all the current data for that task
+                const task = await response.json();
+
+                // Update the completed property to the new value
+                // This modifies the task object in memory (not in the database)
+                task.completed = completed;
+
+                // Make a PUT request to update the task
+                await fetch(`${API_URL}/${id}`, {
+                    // PUT to 'http://localhost:8080/tasks/5' (if id is 5)
+                    method: 'PUT',
+
+                    // Send the updated task object as JSON
+                    // This is what actually saves the change to the database
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(task)
+                });
+
+                // After updating, refresh the task list to show the new state
+                // This re-fetches all tasks and re-renders the HTML
+                loadTasks();
+            } catch (error) {
+                console.error('Error updating task:', error);
+            }
+        }
+
+        //Edit Task
+        async function editTask(id){
+
+            const response = await fetch(`${API_URL}/${id}`);
+            const task = await response.json();
+
+            document.getElementById("title").value = task.title;
+            document.getElementById("description").value = task.description;
+
+            document.getElementById("addTaskButton").textContent = "Update Task";
+
+            currentEditingTaskId = id;
+        }
+
+        //Delete task
+        // Function that takes one parameter: the ID of the task to delete
+        async function deleteTask(id) {
+            //debugging
+            //console.log('Delete called with id:', id);
+            //console.log('Type of id:', typeof id);
+
+            //confirm() = shows a browser popup with OK and Cancel buttons
+            // Returns true if user clicks OK, false if they click Cancel
+            if (confirm('Are you sure you want to delete this task?')) {
+                try {
+                    //console.log('About to delete, URL:', `${API_URL}/${id}`);
+
+                    //Make a DELETE request to 'http://localhost:8080/tasks/5' (if id is 5)
+                    await fetch(`${API_URL}/${id}`, {
+                        method: 'DELETE'
+                    });
+
+                    //Refresh the task list (the deleted task will no longer appear)
+                    loadTasks();
+                } catch (error) {
+                    console.error('Error deleting task:', error);
+                }
+            }
+        }
+
+</script>
+</body>
+</html>
