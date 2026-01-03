@@ -168,6 +168,10 @@
                 <button type="submit" id="addTaskButton">Add Task</button>
             </form>
         </div>
+        <div class="search-container">
+            <label for="searchBox">Search Tasks:</label>
+            <input type="text" id="searchBox" placeholder="Search by title or description...">
+        </div> <br>
         <h2>Your Tasks</h2>
         <ul id="taskList" class="task-list"></ul>
         <div id="noTasks" class="no-tasks" style="display: none">
@@ -259,7 +263,10 @@
 
         //Loads all tasks
         //async: this function can use await for asynchronous operations
-        async function loadTasks() {
+        async function loadTasks(searchTerm = '') {
+            if (searchTerm instanceof Event) {
+                searchTerm = '';
+            }
             try {
                 // fetch(API_URL) with no options makes a GET request
                 // sends GET request to 'http://localhost:8080/tasks' (fetch all tasks)
@@ -272,22 +279,42 @@
                 // Example result: [{id: 1, title: "Task 1", ...}, {id: 2, title: "Task 2", ...}]
                 const tasks = await response.json();
 
-                // debugging
-                //console.log('Fetched tasks:', tasks);
-                //console.log('First task:', tasks[0]);
-                //console.log('First task id:', tasks[0]?.Id);
+                const taskList = document.getElementById('taskList');
+                const noTasks = document.getElementById('noTasks');
+
+                const normalized = (searchTerm || '').trim().toLowerCase();
+
+                let displayTasks = tasks;
+
+                if(normalized !== ''){
+                    displayTasks = tasks.filter(task => {
+                        const title = (task.title || '').toLowerCase();
+                        const description = (task.description || '').toLowerCase();
+
+                        return (
+                            title.includes(normalized) || description.includes(normalized)
+                        )
+                    })
+                }
 
                 // Get references to HTML elements so we can modify them
                 // taskList: the <ul> where tasks will be displayed
                 // noTasks: the message that shows when there are no tasks
-                const taskList = document.getElementById('taskList');
-                const noTasks = document.getElementById('noTasks');
 
                 // check if array is empty (no tasks returned from API)
                 if (tasks.length === 0) {
-                    taskList.innerHTML = '';// innerHTML = the HTML content inside the element, setting it to empty string and clearing any content
+                    taskList.innerHTML = '';
+                    noTasks.textContent = 'No tasks yet. Add one above.';// innerHTML = the HTML content inside the element, setting it to empty string and clearing any content
                     noTasks.style.display = 'block'; // style.display: controls whether element is visible, 'block' makes it visible -> this shows the "No tasks yet" message
                     return; // exit the function and don't execute the code below
+                }
+
+                //If tasks exist, but none match the search
+                if(displayTasks.length === 0){
+                    taskList.innerHTML = '';
+                    noTasks.textContent = 'No tasks match your search.';
+                    noTasks.style.display = 'block';
+                    return;
                 }
 
                 // if we reach here, there ARE tasks so we hide the "No tasks yet" message by setting display to none
@@ -322,7 +349,7 @@
 
                 // <button class="btn-delete": creates delete button
                 // onclick="deleteTask(${task.id})" = call deleteTask function with the task's ID
-                taskList.innerHTML = tasks.map(task => `
+                taskList.innerHTML = displayTasks.map(task => `
                     <li class="task-item ${task.completed ? 'completed' : ''}">
                         <div class="task-content">
                             <div class="task-title ${task.completed ? 'completed' : ''}">${task.title}</div>
@@ -421,6 +448,12 @@
                 }
             }
         }
+
+        document.getElementById('searchBox').addEventListener('input', function(e){
+            //Updates every time user types a character
+            const searchTerm = e.target.value
+            loadTasks(searchTerm);
+        })
 
 </script>
 </body>
