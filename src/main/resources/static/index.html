@@ -149,6 +149,10 @@
             padding: 40px;
             font-style: italic;
         }
+
+        .category-container{
+            display: inline;
+        }
     </style>
 </head>
 <body>
@@ -156,7 +160,7 @@
         <h1>Task Manager</h1>
         <div class="add-task-form">
             <h2> Add New Task</h2>
-            <form id="taskForm">
+            <form name="taskForm" id="taskForm">
                 <div class="form-group">
                     <label for="title">Title: </label>
                     <input type="text" id="title" required>
@@ -165,6 +169,16 @@
                     <label for="description">Description:</label>
                     <textarea id="description"></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="categories">Select a category:</label>
+                    <select id="categories">
+                        <option value="work">Work</option>
+                        <option value="health">Health</option>
+                        <option value="personal">Personal</option>
+                        <option value="shopping">Shopping</option>
+                    </select>
+                </div>
+                <br>
                 <button type="submit" id="addTaskButton">Add Task</button>
             </form>
         </div>
@@ -172,6 +186,17 @@
             <label for="searchBox">Search Tasks:</label>
             <input type="text" id="searchBox" placeholder="Search by title or description...">
         </div> <br>
+        <div class="category-container">
+           <label>
+               <input type="radio" name="selectedCategory" value="all">All
+               <input type="radio" name="selectedCategory" value="work">Work
+               <input type="radio" name="selectedCategory" value="health">Health
+               <input type="radio" name="selectedCategory" value="personal">Personal
+               <input type="radio" name="selectedCategory" value="shopping">Shopping
+               <br><br>
+           </label>
+            <button type="button" id="selectCategoryButton">Filter Category</button><br><br>
+        </div>
         <h2>Your Tasks</h2>
         <ul id="taskList" class="task-list"></ul>
         <div id="noTasks" class="no-tasks" style="display: none">
@@ -183,6 +208,8 @@
         const API_URL = 'http://localhost:8080/tasks';
 
         let currentEditingTaskId = null;
+        let activeCategory = "all";
+        let activeSearchText = '';
 
         // When the page finishes loading, automatically call the loadTasks function
         // to display current existing tasks
@@ -197,14 +224,15 @@
 
             const title = document.getElementById('title').value; //find the input field with id="title" and get whatever user typed into that field
             const description = document.getElementById('description').value; //find the input field with id="description" and get whatever user typed into that field
-
+            const category = document.getElementById("categories").value;
 
             //Creates a JavaScript object that matches our Task entity structure, gives it the values we just stored before
             // This object will be converted to JSON and sent to the API
             const task = {
                 title: title,
                 description: description,
-                completed: false
+                completed: false,
+                category: category
             };
 
             if(currentEditingTaskId !== null){
@@ -263,10 +291,7 @@
 
         //Loads all tasks
         //async: this function can use await for asynchronous operations
-        async function loadTasks(searchTerm = '') {
-            if (searchTerm instanceof Event) {
-                searchTerm = '';
-            }
+        async function loadTasks() {
             try {
                 // fetch(API_URL) with no options makes a GET request
                 // sends GET request to 'http://localhost:8080/tasks' (fetch all tasks)
@@ -282,18 +307,20 @@
                 const taskList = document.getElementById('taskList');
                 const noTasks = document.getElementById('noTasks');
 
-                const normalized = (searchTerm || '').trim().toLowerCase();
+                const normalized = (activeSearchText || '').trim().toLowerCase();
 
                 let displayTasks = tasks;
 
+                if(activeCategory !== "all"){
+                    displayTasks = displayTasks.filter(task => {
+                        return (activeCategory === task.category)
+                    })
+                }
                 if(normalized !== ''){
-                    displayTasks = tasks.filter(task => {
+                    displayTasks = displayTasks.filter(task => {
                         const title = (task.title || '').toLowerCase();
                         const description = (task.description || '').toLowerCase();
-
-                        return (
-                            title.includes(normalized) || description.includes(normalized)
-                        )
+                        return (title.includes(normalized) || description.includes(normalized))
                     })
                 }
 
@@ -417,6 +444,7 @@
 
             document.getElementById("title").value = task.title;
             document.getElementById("description").value = task.description;
+            document.getElementById("categories").value = task.category;
 
             document.getElementById("addTaskButton").textContent = "Update Task";
 
@@ -451,8 +479,13 @@
 
         document.getElementById('searchBox').addEventListener('input', function(e){
             //Updates every time user types a character
-            const searchTerm = e.target.value
-            loadTasks(searchTerm);
+            activeSearchText = e.target.value
+            loadTasks();
+        })
+
+        document.getElementById('selectCategoryButton').addEventListener('click', function(){
+            activeCategory = document.querySelector('input[name="selectedCategory"]:checked').value;
+            loadTasks()
         })
 
 </script>

@@ -47,6 +47,7 @@ public class TaskController {
             task.setTitle(taskDetails.getTitle());
             task.setDescription(taskDetails.getDescription());
             task.setCompleted(taskDetails.getCompleted());
+            task.setCategory(taskDetails.getCategory());
             return taskRepository.save(task);
         }
         return null;

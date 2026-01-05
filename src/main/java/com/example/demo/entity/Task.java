@@ -20,6 +20,7 @@ public class Task {
     private String title;
     private String description;
     private boolean completed;
+    private String category;
 
     public Task(){}
 
@@ -27,6 +28,7 @@ public class Task {
         this.title = title;
         this.description = description;
         this.completed = false;
+        this.category = "Uncategorized";
     }
 
     public String getTitle(){
@@ -35,6 +37,14 @@ public class Task {
 
     public void setTitle(String title){
         this.title = title;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public Long getId(){
